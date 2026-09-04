@@ -20,7 +20,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func applicationWillFinishLaunching(_ notification: Notification) {
-    NSApp.setActivationPolicy(.accessory)
     NSAppleEventManager.shared().setEventHandler(
       self,
       andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
@@ -74,11 +73,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool
   {
-    if !flag, pickerController == nil { showSettings() }
-    return true
+    if pickerController == nil { showSettings() }
+    return false
   }
 
   private func showSettings() {
+    // Settings is a normal app window so launchers and window managers can surface it.
+    // This also restores regular behavior if Settings replaces an accessory picker.
+    NSApp.setActivationPolicy(.regular)
     if settingsController == nil {
       let controller = SettingsWindowController(store: store, defaultBrowser: defaultBrowser)
       controller.onClose = { [weak self] in
@@ -106,6 +108,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       }
       return
     }
+
+    NSApp.setActivationPolicy(.accessory)
 
     let session = PickerSession(urls: urls, targets: targets)
     let controller = PickerWindowController(session: session)
