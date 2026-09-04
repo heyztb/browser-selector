@@ -128,8 +128,16 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
 
   private func presentPanel() {
     dismissesOnResignKey = false
+    // A URL can arrive while another application is still active. The cooperative
+    // `activate()` API is allowed to leave that application active, which makes the
+    // visible picker miss its first key press. This transient chooser explicitly
+    // takes focus because keyboard selection is its primary interaction.
+    NSApp.activate(ignoringOtherApps: true)
     window?.makeKeyAndOrderFront(nil)
-    NSApp.activate()
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.window?.isVisible == true, !self.session.hasCompleted else { return }
+      self.window?.makeKey()
+    }
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
       guard let self, self.window?.isVisible == true, !self.session.hasCompleted else { return }
       self.dismissesOnResignKey = true
