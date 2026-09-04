@@ -19,6 +19,7 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
   let session: PickerSession
   var onSelection: ((PickerSession.Selection) -> Void)?
   var onCancel: (() -> Void)?
+  private var dismissesOnResignKey = false
 
   init(session: PickerSession) {
     self.session = session
@@ -59,8 +60,7 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
     }
     replaceRootView()
     resizeAndPosition()
-    NSApp.activate()
-    window?.makeKeyAndOrderFront(nil)
+    presentPanel()
   }
 
   func selectionFinished(_ result: Result<Void, BrowserLaunchError>) {
@@ -68,12 +68,12 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
     if case .failure = result {
       replaceRootView()
       resizeAndPosition()
-      NSApp.activate()
-      window?.makeKeyAndOrderFront(nil)
+      presentPanel()
     }
   }
 
   func windowDidResignKey(_ notification: Notification) {
+    guard dismissesOnResignKey else { return }
     cancelIfPossible()
   }
 
@@ -123,6 +123,16 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
         return true
       }
       return false
+    }
+  }
+
+  private func presentPanel() {
+    dismissesOnResignKey = false
+    window?.makeKeyAndOrderFront(nil)
+    NSApp.activate()
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+      guard let self, self.window?.isVisible == true, !self.session.hasCompleted else { return }
+      self.dismissesOnResignKey = true
     }
   }
 

@@ -19,9 +19,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     super.init()
   }
 
-  func applicationDidFinishLaunching(_ notification: Notification) {
+  func applicationWillFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.accessory)
+    NSAppleEventManager.shared().setEventHandler(
+      self,
+      andSelector: #selector(handleGetURLEvent(_:withReplyEvent:)),
+      forEventClass: AEEventClass(kInternetEventClass),
+      andEventID: AEEventID(kAEGetURL)
+    )
+  }
 
+  func applicationDidFinishLaunching(_ notification: Notification) {
     // Launch Services may deliver application(_:open:) just after this callback.
     // Delay the direct-launch Settings window long enough to distinguish the two paths.
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
@@ -31,6 +39,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   func application(_ application: NSApplication, open urls: [URL]) {
+    handleIncomingURLs(urls)
+  }
+
+  @objc private func handleGetURLEvent(
+    _ event: NSAppleEventDescriptor,
+    withReplyEvent replyEvent: NSAppleEventDescriptor
+  ) {
+    guard
+      let value = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+      let url = URL(string: value)
+    else { return }
+    handleIncomingURLs([url])
+  }
+
+  private func handleIncomingURLs(_ urls: [URL]) {
     let accepted = urls.filter {
       guard let scheme = $0.scheme?.lowercased() else { return false }
       return scheme == "http" || scheme == "https" || scheme == "file"
