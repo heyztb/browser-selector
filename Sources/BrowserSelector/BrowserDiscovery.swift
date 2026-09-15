@@ -8,13 +8,35 @@ struct BrowserApplicationRecord: Equatable, Sendable {
 }
 
 enum BrowserTargetBuilder {
+  static let firefoxBundleIdentifiers: Set<String> = [
+    "org.mozilla.firefox", "org.mozilla.firefoxdeveloperedition",
+  ]
+
   static func build(
     applications: [BrowserApplicationRecord],
     currentBundleIdentifier: String,
     firefoxProfiles: [FirefoxProfile]
-  ) -> [BrowserTarget] {
+  ) -> DiscoveryResult {
     var seen: Set<String> = []
     var targets: [BrowserTarget] = []
+
+    let firefoxApplications = applications.filter {
+      firefoxBundleIdentifiers.contains($0.bundleIdentifier)
+    }
+    var profilesByBundle:
+      [String: [(profile: FirefoxProfile, application: BrowserApplicationRecord)]] = [:]
+    var warnings: [String] = []
+    for profile in firefoxProfiles {
+      let matches = firefoxApplications.filter { profile.compatibility.matches($0) }
+      let bundles = Set(matches.map(\.bundleIdentifier))
+      if bundles.count == 1, let match = matches.first {
+        profilesByBundle[match.bundleIdentifier, default: []].append((profile, match))
+      } else {
+        warnings.append(
+          "Skipped Firefox profile \(profile.name) (\(profile.path.path)): its recorded app could not be matched. Open the profile in its intended Firefox edition, then refresh."
+        )
+      }
+    }
 
     for application in applications {
       let bundleIdentifier = application.bundleIdentifier
@@ -22,14 +44,14 @@ enum BrowserTargetBuilder {
         seen.insert(bundleIdentifier).inserted
       else { continue }
 
-      if bundleIdentifier == "org.mozilla.firefox", !firefoxProfiles.isEmpty {
-        for profile in firefoxProfiles {
+      if let profiles = profilesByBundle[bundleIdentifier], !profiles.isEmpty {
+        for (profile, matchedApplication) in profiles {
           targets.append(
             BrowserTarget(
               id: BrowserTarget.firefoxProfileID(
                 bundleIdentifier: bundleIdentifier, path: profile.path),
               bundleIdentifier: bundleIdentifier,
-              appURL: application.appURL.standardizedFileURL,
+              appURL: matchedApplication.appURL.standardizedFileURL,
               discoveredName: profile.name,
               kind: .firefoxProfile(path: profile.path),
               customName: nil,
@@ -51,7 +73,7 @@ enum BrowserTargetBuilder {
           ))
       }
     }
-    return targets
+    return DiscoveryResult(targets: targets, warnings: warnings)
   }
 }
 
@@ -105,19 +127,22 @@ final class BrowserDiscovery: BrowserDiscovering {
     }
 
     let profileResult =
-      applications.contains { $0.bundleIdentifier == "org.mozilla.firefox" }
+      applications.contains {
+        BrowserTargetBuilder.firefoxBundleIdentifiers.contains($0.bundleIdentifier)
+      }
       ? firefoxProfiles.discover() : (profiles: [], warnings: [])
     warnings.append(contentsOf: profileResult.warnings)
-    let targets = BrowserTargetBuilder.build(
+    let result = BrowserTargetBuilder.build(
       applications: applications,
       currentBundleIdentifier: currentBundleIdentifier,
       firefoxProfiles: profileResult.profiles
     )
 
-    if targets.isEmpty {
+    warnings.append(contentsOf: result.warnings)
+    if result.targets.isEmpty {
       warnings.append("No installed web browsers were found.")
     }
-    return DiscoveryResult(targets: targets, warnings: warnings)
+    return DiscoveryResult(targets: result.targets, warnings: warnings)
   }
 }
 
@@ -128,7 +153,13 @@ enum TargetReconciler {
   ) -> [BrowserTarget] {
     var targets = discovered.map { target in
       var target = target
-      if let preference = preferences[target.id] {
+      let legacyID: String? = {
+        guard target.bundleIdentifier == "org.mozilla.firefoxdeveloperedition",
+          let path = target.profilePath
+        else { return nil }
+        return BrowserTarget.firefoxProfileID(bundleIdentifier: "org.mozilla.firefox", path: path)
+      }()
+      if let preference = preferences[target.id] ?? legacyID.flatMap({ preferences[$0] }) {
         target.customName = preference.customName
         target.isVisible = preference.isVisible
         target.order = preference.order

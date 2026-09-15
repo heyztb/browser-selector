@@ -42,6 +42,34 @@ final class BrowserLauncherTests: XCTestCase {
     XCTAssertEqual(runner.executableURL?.lastPathComponent, "firefox")
   }
 
+  func testDeveloperProfileUsesMatchedExecutable() throws {
+    let appURL = try makeFakeApplication(executableName: "firefox")
+    defer { try? FileManager.default.removeItem(at: appURL.deletingLastPathComponent()) }
+    let profileURL = appURL.deletingLastPathComponent().appendingPathComponent("Dev Profile")
+    try FileManager.default.createDirectory(at: profileURL, withIntermediateDirectories: true)
+    let application = BrowserApplicationRecord(
+      bundleIdentifier: "org.mozilla.firefoxdeveloperedition",
+      appURL: appURL, displayName: "Firefox Developer Edition")
+    let profile = FirefoxProfile(
+      name: "dev", path: profileURL, isRegistered: true,
+      compatibility: FirefoxCompatibility(
+        lastPlatformDirectory: appURL.path + "/Contents/Resources"))
+    let result = BrowserTargetBuilder.build(
+      applications: [application],
+      currentBundleIdentifier: "self", firefoxProfiles: [profile])
+    let target = try XCTUnwrap(result.targets.first)
+    let runner = RecordingProcessRunner()
+    let recorder = LaunchResultRecorder()
+    BrowserLauncher(processRunner: runner).open(
+      urls: [URL(string: "https://example.com")!], with: target
+    ) {
+      recorder.result = $0
+    }
+    XCTAssertNotNil(try recorder.result?.get())
+    XCTAssertEqual(runner.executableURL, appURL.appendingPathComponent("Contents/MacOS/firefox"))
+    XCTAssertEqual(runner.arguments, ["-profile", profileURL.path, "https://example.com"])
+  }
+
   func testMissingProfileReturnsActionableFailureWithoutRunning() throws {
     let appURL = try makeFakeApplication(executableName: "firefox")
     defer { try? FileManager.default.removeItem(at: appURL.deletingLastPathComponent()) }

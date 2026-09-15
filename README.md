@@ -46,6 +46,16 @@ scans the adjacent `Profiles` directory. Registered profiles use their Firefox
 name; otherwise the directory name is shown. Rename entries in Settings without
 changing the underlying Firefox profile.
 
+Regular Firefox and Firefox Developer Edition profiles are matched to the installed
+app recorded in each profile's `compatibility.ini`. This records the last app used,
+not permanent ownership. Each matched profile uses that edition's icon and executable;
+an edition's generic app entry appears only when it has no matched profiles.
+
+Profiles with missing, conflicting, or stale app metadata are skipped with a notice
+in Settings. Open the profile in its intended Firefox edition, then refresh the
+browser list. Profile names are not used to guess the edition. Existing names,
+visibility, and ordering are preserved when a Developer Edition profile is corrected.
+
 Firefox is invoked directly with `-profile` and the absolute profile path.
 Browser Selector never uses a shell to construct browser commands.
 

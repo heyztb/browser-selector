@@ -4,6 +4,43 @@ struct FirefoxProfile: Equatable, Sendable {
   let name: String
   let path: URL
   let isRegistered: Bool
+  var compatibility: FirefoxCompatibility = FirefoxCompatibility()
+}
+
+struct FirefoxCompatibility: Equatable, Sendable {
+  var lastPlatformDirectory: String?
+  var lastAppDirectory: String?
+
+  static func parse(_ contents: String) -> Self {
+    var result = Self()
+    var inCompatibility = false
+    for rawLine in contents.components(separatedBy: .newlines) {
+      let line = rawLine.trimmingCharacters(in: .whitespacesAndNewlines)
+      if line.hasPrefix("[") {
+        inCompatibility = line == "[Compatibility]"
+      } else if inCompatibility, let separator = line.firstIndex(of: "=") {
+        let key = line[..<separator].trimmingCharacters(in: .whitespaces)
+        let value = line[line.index(after: separator)...].trimmingCharacters(in: .whitespaces)
+        if key == "LastPlatformDir" { result.lastPlatformDirectory = value }
+        if key == "LastAppDir" { result.lastAppDirectory = value }
+      }
+    }
+    return result
+  }
+
+  func matches(_ application: BrowserApplicationRecord) -> Bool {
+    func matchesPath(_ raw: String, _ suffix: String) -> Bool {
+      guard NSString(string: raw).isAbsolutePath else { return false }
+      return URL(fileURLWithPath: raw).standardizedFileURL.resolvingSymlinksInPath().path
+        == application.appURL.appendingPathComponent(suffix)
+        .standardizedFileURL.resolvingSymlinksInPath().path
+    }
+    if let platform = lastPlatformDirectory {
+      guard matchesPath(platform, "Contents/Resources") else { return false }
+      return lastAppDirectory.map { matchesPath($0, "Contents/Resources/browser") } ?? true
+    }
+    return lastAppDirectory.map { matchesPath($0, "Contents/Resources/browser") } ?? false
+  }
 }
 
 enum FirefoxProfileParser {
@@ -115,7 +152,15 @@ struct FirefoxProfileDiscovery {
       }
     }
 
-    let profiles = byPath.values.sorted {
+    let profiles = byPath.values.map { profile in
+      var profile = profile
+      if let contents = try? String(
+        contentsOf: profile.path.appendingPathComponent("compatibility.ini"), encoding: .utf8
+      ) {
+        profile.compatibility = FirefoxCompatibility.parse(contents)
+      }
+      return profile
+    }.sorted {
       let comparison = $0.name.localizedCaseInsensitiveCompare($1.name)
       return comparison == .orderedSame
         ? $0.path.path < $1.path.path : comparison == .orderedAscending

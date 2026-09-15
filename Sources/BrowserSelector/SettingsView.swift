@@ -74,7 +74,8 @@ struct SettingsView: View {
             onMoveDown: { store.moveTarget(id: target.id, direction: 1) }
           )
         }
-        .onMove(perform: store.move)
+        // Use the row's arrow buttons for reordering. List's drag-to-move
+        // handling intercepts clicks intended for the editable name fields.
       }
       .listStyle(.inset)
       .frame(minHeight: 260)

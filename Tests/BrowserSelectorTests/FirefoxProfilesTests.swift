@@ -68,8 +68,18 @@ final class FirefoxProfilesTests: XCTestCase {
     """.write(
       to: temporary.appendingPathComponent("profiles.ini"), atomically: true, encoding: .utf8)
 
+    for directory in [registered, orphan] {
+      try "[Compatibility]\nLastPlatformDir=/Applications/Firefox.app/Contents/Resources".write(
+        to: directory.appendingPathComponent("compatibility.ini"), atomically: true, encoding: .utf8
+      )
+    }
+
     let result = FirefoxProfileDiscovery(firefoxRoot: temporary).discover()
 
+    XCTAssertTrue(
+      result.profiles.allSatisfy {
+        $0.compatibility.lastPlatformDirectory == "/Applications/Firefox.app/Contents/Resources"
+      })
     XCTAssertEqual(result.profiles.count, 2)
     XCTAssertEqual(Set(result.profiles.map(\.name)), ["Work", "xADZmP5H.Profile 1"])
     XCTAssertTrue(result.warnings.isEmpty)
