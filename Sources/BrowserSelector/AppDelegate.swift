@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Zach Blake
+// SPDX-License-Identifier: GPL-3.0-or-later
+
 import AppKit
 import Foundation
 

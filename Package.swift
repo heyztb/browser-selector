@@ -1,4 +1,6 @@
 // swift-tools-version: 6.0
+// Copyright (c) 2026 Zach Blake
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 import PackageDescription
 

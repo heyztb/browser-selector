@@ -1,4 +1,7 @@
 #!/bin/zsh
+# Copyright (c) 2026 Zach Blake
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 set -euo pipefail
 
 script_dir=${0:A:h}

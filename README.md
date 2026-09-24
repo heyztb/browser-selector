@@ -4,7 +4,9 @@ Browser Selector is a small, native macOS utility that asks which browser or
 Firefox profile should open a link. It is deliberately limited to that job: no
 rules, history, analytics, page lookups, native-app routing, or update checks.
 
-It supports macOS 14 Sonoma and newer and is licensed under the MIT License.
+It supports macOS 14 Sonoma and newer and is licensed under the
+GNU General Public License, version 3 or (at your option) any later version
+(`GPL-3.0-or-later`). See [LICENSE](LICENSE).
 
 ## Features
 
@@ -69,28 +71,32 @@ Browser Selector never uses a shell to construct browser commands.
 | 1–9 | Open the numbered choice |
 | Escape | Cancel |
 
-## Release signing
+## Install
 
-Tags matching `vMAJOR.MINOR.PATCH` trigger the release workflow. It tests the
-package, builds a universal app, signs it with hardened runtime, notarizes and
-staples it, and publishes a ZIP plus SHA-256 checksum.
+Download the DMG from [GitHub Releases](https://github.com/heyztb/browser-selector/releases),
+open it, and drag **Browser Selector** into **Applications**.
 
-Configure these GitHub Actions secrets:
+Releases are **ad hoc signed and not notarized by Apple**. On first launch, macOS
+may block the app because it cannot verify the developer. Open **System Settings
+→ Privacy & Security**, select **Open Anyway** for Browser Selector, and confirm.
+This grants an exception for this app; disabling Gatekeeper is unnecessary.
+See [Apple's instructions](https://support.apple.com/102445).
 
-- `APPLE_DEVELOPER_ID_P12`: base64-encoded Developer ID Application certificate
-  and private key.
-- `APPLE_DEVELOPER_ID_PASSWORD`: password for the P12.
-- `APPLE_KEYCHAIN_PASSWORD`: temporary CI keychain password.
-- `APPLE_SIGNING_IDENTITY`: full Developer ID Application identity.
-- `APPLE_NOTARY_KEY_P8`: base64-encoded App Store Connect API private key.
-- `APPLE_NOTARY_KEY_ID` and `APPLE_NOTARY_ISSUER_ID`: corresponding API key identifiers.
+Once the app opens, select **Set as Default Browser** and approve the macOS
+confirmation. Updates are manual: quit the app, then replace it in Applications
+with the new version.
 
-Browser Selector has no automatic updater. Users install new versions from
-GitHub Releases.
+## Releases
+
+Release builds include a [reproducibility check and independent comparison
+procedure](REPRODUCIBILITY.md). Run `./scripts/check-reproducibility.sh` to compare
+two clean universal builds. Each build records its environment in
+`.build/build-info.txt`; signed containers themselves are not byte-reproducible.
+
+Releases are packaged locally and uploaded manually.
 
 ## Privacy and scope
 
-Browser Selector examines installed application bundles and Firefox's local
-profile index. It does not inspect pages, follow redirects, fetch favicons,
-retain opened URLs, or send telemetry. Tor Browser is treated as an ordinary
-browser application; its configuration is neither read nor changed.
+Browser Selector knows what browsers you have installed and can detect Firefox
+profiles. It does not inspect pages, follow redirects, fetch favicons, retain
+opened URLs, or send telemetry. 

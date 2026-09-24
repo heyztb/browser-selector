@@ -1,4 +1,7 @@
 #!/bin/zsh
+# Copyright (c) 2026 Zach Blake
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 set -euo pipefail
 
 script_dir=${0:A:h}
@@ -10,6 +13,9 @@ executable="$app_path/Contents/MacOS/BrowserSelector"
 test -d "$app_path"
 test -x "$executable"
 test -f "$app_path/Contents/Resources/AppIcon.icns"
+cmp "$project_dir/LICENSE" "$app_path/Contents/Resources/LICENSE"
+grep -q 'SPDX-License-Identifier: GPL-3.0-or-later' "$app_path/Contents/Resources/LicenseNotice.txt"
+grep -q 'Source code and build instructions: https://github.com/heyztb/browser-selector' "$app_path/Contents/Resources/LicenseNotice.txt"
 plutil -lint "$plist"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "io.github.heyztb.BrowserSelector"
 test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")" = "14.0"
