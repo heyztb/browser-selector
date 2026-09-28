@@ -9,15 +9,25 @@ import Foundation
 final class TargetStore: ObservableObject {
   @Published private(set) var targets: [BrowserTarget] = []
   @Published private(set) var warnings: [String] = []
+  @Published private(set) var needsFirefoxAccess = false
+  @Published private(set) var firefoxAccessError: String?
+  @Published private(set) var staysOpenInBackground: Bool
 
   private let discovery: BrowserDiscovering
   private let defaults: UserDefaults
   private let preferencesKey = "targetPreferences.v1"
+  private let backgroundKey = "staysOpenInBackground.v1"
 
   init(discovery: BrowserDiscovering, defaults: UserDefaults = .standard) {
     self.discovery = discovery
     self.defaults = defaults
+    self.staysOpenInBackground = defaults.bool(forKey: backgroundKey)
     refresh()
+  }
+
+  func setStaysOpenInBackground(_ enabled: Bool) {
+    staysOpenInBackground = enabled
+    defaults.set(enabled, forKey: backgroundKey)
   }
 
   var visibleTargets: [BrowserTarget] {
@@ -31,7 +41,36 @@ final class TargetStore: ObservableObject {
       preferences: loadPreferences()
     )
     warnings = result.warnings
+    needsFirefoxAccess = result.needsFirefoxAccess
     save()
+  }
+
+  func chooseFirefoxFolder() {
+    let expected = FileManager.default.homeDirectoryForCurrentUser
+      .appendingPathComponent("Library/Application Support/Firefox", isDirectory: true)
+    let panel = NSOpenPanel()
+    panel.message = "Approve access to this Firefox folder to show its profiles in Browser Selector."
+    panel.prompt = "Allow Access"
+    panel.canChooseFiles = false
+    panel.canChooseDirectories = true
+    panel.allowsMultipleSelection = false
+    panel.directoryURL = expected
+    guard panel.runModal() == .OK, let selected = panel.url else { return }
+    guard selected.standardizedFileURL == expected.standardizedFileURL else {
+      firefoxAccessError = "Select the Firefox folder in Library/Application Support."
+      return
+    }
+    do {
+      try FirefoxFolderAuthorization.save(selected)
+    } catch {
+      firefoxAccessError = "Could not save access to the Firefox folder: \(error.localizedDescription)"
+      return
+    }
+    firefoxAccessError = nil
+    refresh()
+    if needsFirefoxAccess {
+      firefoxAccessError = "macOS still denied access. Check Browser Selector in Privacy & Security settings."
+    }
   }
 
   func setVisible(_ visible: Bool, for id: String) {

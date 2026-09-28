@@ -63,8 +63,12 @@
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
+    <key>LSUIElement</key>
+    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
+    <key>NSAppDataUsageDescription</key>
+    <string>Browser Selector reads Firefox profile names to offer each profile as a browser choice.</string>
     <key>NSHumanReadableCopyright</key>
     <string>Copyright © 2026 Zach Blake</string>
     <key>NSPrincipalClass</key>

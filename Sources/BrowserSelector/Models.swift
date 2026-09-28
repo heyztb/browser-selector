@@ -46,6 +46,7 @@ struct TargetPreferences: Codable, Equatable, Sendable {
 struct DiscoveryResult: Equatable, Sendable {
   var targets: [BrowserTarget]
   var warnings: [String]
+  var needsFirefoxAccess = false
 }
 
 enum BrowserLaunchError: LocalizedError, Equatable, Sendable {

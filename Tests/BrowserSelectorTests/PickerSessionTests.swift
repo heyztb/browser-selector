@@ -8,6 +8,19 @@ import XCTest
 
 @MainActor
 final class PickerSessionTests: XCTestCase {
+  func testCompletedAndCancelledSessionsDiscardPendingURLs() {
+    let url = URL(string: "https://example.com/private")!
+    let target = target("browser")
+    let completed = PickerSession(urls: [url], targets: [target])
+    XCTAssertNotNil(completed.selectFocused())
+    completed.finish(.success(()))
+    XCTAssertTrue(completed.pendingURLs.isEmpty)
+
+    let cancelled = PickerSession(urls: [url], targets: [target])
+    XCTAssertTrue(cancelled.cancel())
+    XCTAssertTrue(cancelled.pendingURLs.isEmpty)
+  }
+
   func testFocusWrapsAndNumericSelectionIsExactlyOnce() {
     let session = PickerSession(
       urls: [URL(string: "https://example.com")!],

@@ -67,6 +67,7 @@ final class PickerSession: ObservableObject {
     case .success:
       hasCompleted = true
       isLaunching = false
+      pendingURLs.removeAll()
     case .failure(let error):
       isLaunching = false
       errorMessage = error.localizedDescription
@@ -76,6 +77,7 @@ final class PickerSession: ObservableObject {
   func cancel() -> Bool {
     guard !isLaunching, !hasCompleted else { return false }
     hasCompleted = true
+    pendingURLs.removeAll()
     return true
   }
 

@@ -133,7 +133,7 @@ final class BrowserDiscovery: BrowserDiscovering {
       applications.contains {
         BrowserTargetBuilder.firefoxBundleIdentifiers.contains($0.bundleIdentifier)
       }
-      ? firefoxProfiles.discover() : (profiles: [], warnings: [])
+      ? firefoxProfiles.discover() : (profiles: [], warnings: [], needsAccess: false)
     warnings.append(contentsOf: profileResult.warnings)
     let result = BrowserTargetBuilder.build(
       applications: applications,
@@ -145,7 +145,9 @@ final class BrowserDiscovery: BrowserDiscovering {
     if result.targets.isEmpty {
       warnings.append("No installed web browsers were found.")
     }
-    return DiscoveryResult(targets: result.targets, warnings: warnings)
+    return DiscoveryResult(
+      targets: result.targets, warnings: warnings,
+      needsFirefoxAccess: profileResult.needsAccess)
   }
 }
 

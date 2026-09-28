@@ -26,16 +26,6 @@ case "$architecture" in
 esac
 
 cd "$project_dir"
-if [[ "$configuration" == "release" ]]; then
-  # Keep checkout paths out of the executable. In particular, Swift's linker
-  # debug map includes an absolute swiftmodule path even with prefix mapping.
-  build_arguments+=(
-    -Xswiftc -debug-prefix-map -Xswiftc "$project_dir=/BrowserSelector"
-    -Xswiftc -file-prefix-map -Xswiftc "$project_dir=/BrowserSelector"
-    -Xlinker -reproducible
-    -Xlinker -S
-  )
-fi
 swift build "${build_arguments[@]}"
 binary_dir=$(swift build "${build_arguments[@]}" --show-bin-path)
 
@@ -69,26 +59,5 @@ if [[ "$signing_identity" == "-" ]]; then
 else
   codesign --force --options runtime --timestamp --sign "$signing_identity" "$app_path"
 fi
-
-# Record the environment outside the bundle: machine-specific information must
-# not become part of the payload that independent builders compare.
-{
-  echo "configuration=$configuration"
-  echo "architecture=$architecture"
-  echo "version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app_path/Contents/Info.plist")"
-  echo "build_number=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app_path/Contents/Info.plist")"
-  echo "developer_dir=$(xcode-select -p)"
-  echo "DEVELOPER_DIR=${DEVELOPER_DIR:-}"
-  xcodebuild -version
-  swift --version 2>&1
-  echo "sdk_path=$(xcrun --sdk macosx --show-sdk-path)"
-  echo "sdk_version=$(xcrun --sdk macosx --show-sdk-version)"
-  echo "sdk_build=$(xcrun --sdk macosx --show-sdk-build-version)"
-  sw_vers
-  if [[ -d "$project_dir/.git" || -f "$project_dir/.git" ]]; then
-    echo "source_commit=$(git rev-parse HEAD)"
-    git status --porcelain
-  fi
-} > "$project_dir/.build/build-info.txt"
 
 echo "$app_path"

@@ -8,7 +8,10 @@ import SwiftUI
 final class SettingsWindowController: NSWindowController, NSWindowDelegate {
   var onClose: (() -> Void)?
 
-  init(store: TargetStore, defaultBrowser: DefaultBrowserManager) {
+  init(
+    store: TargetStore, defaultBrowser: DefaultBrowserManager,
+    onBackgroundModeChanged: @escaping () -> Void, onQuit: @escaping () -> Void
+  ) {
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 680, height: 500),
       styleMask: [.titled, .closable, .miniaturizable, .resizable],
@@ -20,7 +23,9 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
     window.isReleasedWhenClosed = false
     window.center()
     window.contentViewController = NSHostingController(
-      rootView: SettingsView(store: store, defaultBrowser: defaultBrowser)
+      rootView: SettingsView(
+        store: store, defaultBrowser: defaultBrowser,
+        onBackgroundModeChanged: onBackgroundModeChanged, onQuit: onQuit)
     )
     super.init(window: window)
     window.delegate = self

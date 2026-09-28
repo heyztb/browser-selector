@@ -19,6 +19,7 @@ grep -q 'Source code and build instructions: https://github.com/heyztb/browser-s
 plutil -lint "$plist"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" = "io.github.heyztb.BrowserSelector"
 test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")" = "14.0"
+test "$(/usr/libexec/PlistBuddy -c 'Print :LSUIElement' "$plist")" = "true"
 /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes' "$plist" | grep -q http
 /usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes' "$plist" | grep -q https
 /usr/libexec/PlistBuddy -c 'Print :CFBundleDocumentTypes:0:LSItemContentTypes' "$plist" | grep -q public.html

@@ -11,8 +11,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let defaultBrowser: DefaultBrowserManager
   private var settingsController: SettingsWindowController?
   private var pickerController: PickerWindowController?
+  private var statusItem: NSStatusItem?
   private var receivedURLs = false
   private var deferredURLs: [URL] = []
+  private var needsPickerRefresh = false
 
   override init() {
     let discovery = BrowserDiscovery()
@@ -20,6 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     self.launcher = BrowserLauncher()
     self.defaultBrowser = DefaultBrowserManager()
     super.init()
+    updateStatusItem()
   }
 
   func applicationWillFinishLaunching(_ notification: Notification) {
@@ -36,6 +39,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // Delay the direct-launch Settings window long enough to distinguish the two paths.
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
       guard let self, !self.receivedURLs, self.pickerController == nil else { return }
+      guard !self.store.staysOpenInBackground else { return }
       self.showSettings()
     }
   }
@@ -76,7 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool
   {
-    if pickerController == nil { showSettings() }
+    // Launch Services can send a reopen event alongside a URL to a running app.
+    // In resident mode, Settings is available from the menu bar instead.
+    if pickerController == nil, !store.staysOpenInBackground { showSettings() }
     return false
   }
 
@@ -85,20 +91,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // This also restores regular behavior if Settings replaces an accessory picker.
     NSApp.setActivationPolicy(.regular)
     if settingsController == nil {
-      let controller = SettingsWindowController(store: store, defaultBrowser: defaultBrowser)
+      let controller = SettingsWindowController(
+        store: store, defaultBrowser: defaultBrowser,
+        onBackgroundModeChanged: { [weak self] in self?.updateStatusItem() },
+        onQuit: { NSApp.terminate(nil) })
       controller.onClose = { [weak self] in
-        guard let self, self.pickerController == nil else { return }
-        NSApp.terminate(nil)
+        self?.settingsClosed()
       }
       settingsController = controller
     }
     store.refresh()
+    needsPickerRefresh = true
     defaultBrowser.refresh()
     settingsController?.show()
   }
 
   private func showPicker(urls: [URL]) {
-    store.refresh()
+    // TargetStore discovers browsers during initialization. A second scan on the
+    // cold link path delays the picker without providing newer data.
+    if needsPickerRefresh {
+      store.refresh()
+      needsPickerRefresh = false
+    }
     let targets = store.visibleTargets
     guard !targets.isEmpty else {
       showSettings()
@@ -127,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
           controller.window?.orderOut(nil)
           self.pickerController = nil
           if self.deferredURLs.isEmpty {
-            NSApp.terminate(nil)
+            self.finishPicker()
           } else {
             let queued = self.deferredURLs
             self.deferredURLs.removeAll()
@@ -140,7 +154,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     controller.onCancel = { [weak self] in
       self?.pickerController = nil
-      NSApp.terminate(nil)
+      self?.deferredURLs.removeAll()
+      self?.finishPicker()
     }
     pickerController = controller
 
@@ -149,4 +164,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     settingsController = nil
     controller.show()
   }
+
+  private func settingsClosed() {
+    guard pickerController == nil else { return }
+    if store.staysOpenInBackground {
+      NSApp.setActivationPolicy(.accessory)
+    } else {
+      NSApp.terminate(nil)
+    }
+  }
+
+  private func finishPicker() {
+    if !store.staysOpenInBackground {
+      NSApp.terminate(nil)
+    }
+  }
+
+  private func updateStatusItem() {
+    guard store.staysOpenInBackground else {
+      if let statusItem { NSStatusBar.system.removeStatusItem(statusItem) }
+      statusItem = nil
+      return
+    }
+    guard statusItem == nil else { return }
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    item.button?.image = NSImage(systemSymbolName: "globe", accessibilityDescription: "Browser Selector")
+    let menu = NSMenu()
+    menu.addItem(NSMenuItem(title: "Settings…", action: #selector(openSettingsFromMenu), keyEquivalent: ""))
+    menu.addItem(.separator())
+    menu.addItem(NSMenuItem(title: "Quit Browser Selector", action: #selector(quitFromMenu), keyEquivalent: ""))
+    for menuItem in menu.items where menuItem.action != nil { menuItem.target = self }
+    item.menu = menu
+    statusItem = item
+  }
+
+  @objc private func openSettingsFromMenu() { showSettings() }
+
+  @objc private func quitFromMenu() { NSApp.terminate(nil) }
 }

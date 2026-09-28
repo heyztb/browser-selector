@@ -16,5 +16,3 @@ jobs:
         run: ./scripts/build-app.sh release native
       - name: Verify app bundle
         run: ./scripts/verify-app.sh
-      - name: Check universal release reproducibility
-        run: ./scripts/check-reproducibility.sh

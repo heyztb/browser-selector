@@ -8,6 +8,18 @@ import XCTest
 
 @MainActor
 final class TargetStoreTests: XCTestCase {
+  func testBackgroundModeIsOptInAndPersists() {
+    let suiteName = "BrowserSelectorTests.\(UUID().uuidString)"
+    let defaults = UserDefaults(suiteName: suiteName)!
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let discovery = StubDiscovery(targets: [target("one")])
+
+    let store = TargetStore(discovery: discovery, defaults: defaults)
+    XCTAssertFalse(store.staysOpenInBackground)
+    store.setStaysOpenInBackground(true)
+    XCTAssertTrue(TargetStore(discovery: discovery, defaults: defaults).staysOpenInBackground)
+  }
+
   func testStorePersistsRenameVisibilityAndOrderAcrossRediscovery() throws {
     let suiteName = "BrowserSelectorTests.\(UUID().uuidString)"
     let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

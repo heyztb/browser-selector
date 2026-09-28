@@ -17,7 +17,9 @@ GNU General Public License, version 3 or (at your option) any later version
 - Opens a burst of pending links together in the selected target.
 - Supports the mouse, arrow keys, Tab and Shift-Tab, Return, number keys 1–9,
   Escape, and click-away dismissal.
-- Stores only display names, visibility, and ordering in local preferences.
+- Stores display names, visibility, ordering, and the optional background setting
+  in local preferences. If you grant Firefox folder access, it also stores a
+  bookmark for that folder.
 - Performs no network requests of its own.
 
 ## Build
@@ -37,9 +39,18 @@ testing, install it in `/Applications`:
 ./scripts/install-local.sh
 ```
 
+When handling a link, Browser Selector runs as an accessory app so its picker
+does not briefly add an icon to the Dock. Opening it directly still shows
+Settings as a regular app window.
+
 Opening Browser Selector directly shows Settings. Select **Set as Default
 Browser** and approve the macOS confirmation. You can also choose it under
 **System Settings → Desktop & Dock → Default web browser**.
+
+Settings has an optional **Keep Browser Selector running between links** switch.
+When enabled, closing Settings or finishing a picker leaves the same app idle,
+ready for the next link. A menu bar icon opens Settings or quits the app. It does
+not launch at login.
 
 ## Firefox profiles
 
@@ -88,15 +99,23 @@ with the new version.
 
 ## Releases
 
-Release builds include a [reproducibility check and independent comparison
-procedure](REPRODUCIBILITY.md). Run `./scripts/check-reproducibility.sh` to compare
-two clean universal builds. Each build records its environment in
-`.build/build-info.txt`; signed containers themselves are not byte-reproducible.
+To prepare a release from the reviewed commit, build a universal app and DMG:
 
-Releases are packaged locally and uploaded manually.
+```sh
+swift test
+./scripts/release-dmg.sh 0.1.0 1
+```
+
+Replace the version and build number with those for the release. The script
+ad hoc signs the app, verifies the bundle and DMG, and writes the DMG and its
+SHA-256 checksum to `.build/releases/`. Check the app on a separate Mac before
+uploading the DMG and checksum to GitHub Releases manually. Tag the source
+commit with the matching `vVERSION` tag so recipients can find the source for
+the binary. Anyone who wants to inspect the behavior can read the source or
+build the app locally using the steps above.
 
 ## Privacy and scope
 
 Browser Selector knows what browsers you have installed and can detect Firefox
 profiles. It does not inspect pages, follow redirects, fetch favicons, retain
-opened URLs, or send telemetry. 
+opened URLs after a choice or cancellation, or send telemetry.

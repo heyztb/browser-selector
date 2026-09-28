@@ -7,6 +7,8 @@ import SwiftUI
 struct SettingsView: View {
   @ObservedObject var store: TargetStore
   @ObservedObject var defaultBrowser: DefaultBrowserManager
+  let onBackgroundModeChanged: () -> Void
+  let onQuit: () -> Void
 
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
@@ -45,6 +47,26 @@ struct SettingsView: View {
       }
 
       Divider()
+
+      if store.needsFirefoxAccess {
+        HStack(alignment: .center, spacing: 12) {
+          VStack(alignment: .leading, spacing: 2) {
+            Text("Firefox profiles need access")
+              .font(.headline)
+            Text("macOS denied access. Approve the Firefox folder in the chooser to show individual profiles.")
+              .font(.caption)
+              .foregroundStyle(.secondary)
+          }
+          Spacer()
+          Button("Grant Firefox Access") { store.chooseFirefoxFolder() }
+            .accessibilityIdentifier("choose-firefox-folder")
+        }
+      }
+      if let error = store.firefoxAccessError {
+        Label(error, systemImage: "exclamationmark.triangle.fill")
+          .font(.caption)
+          .foregroundStyle(.red)
+      }
 
       HStack {
         VStack(alignment: .leading, spacing: 2) {
@@ -92,6 +114,31 @@ struct SettingsView: View {
         }
         .font(.caption)
       }
+
+      Divider()
+      HStack {
+        Toggle(
+          "Keep Browser Selector running between links",
+          isOn: Binding(
+            get: { store.staysOpenInBackground },
+            set: {
+              store.setStaysOpenInBackground($0)
+              onBackgroundModeChanged()
+            }
+          )
+        )
+        .accessibilityIdentifier("keep-running-between-links")
+        Spacer()
+        Button("Quit Browser Selector", action: onQuit)
+          .accessibilityIdentifier("quit-browser-selector")
+      }
+      Text(
+        store.staysOpenInBackground
+          ? "Browser Selector stays in the menu bar after you close this window. Click its globe icon to open Settings or quit."
+          : "When enabled, Browser Selector stays ready for the next link and adds a menu bar icon for Settings and Quit."
+      )
+        .font(.caption)
+        .foregroundStyle(.secondary)
     }
     .padding(20)
     .frame(minWidth: 620, idealWidth: 680, minHeight: 440)

@@ -42,10 +42,9 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
     panel.collectionBehavior = [.transient, .fullScreenAuxiliary]
     panel.isMovableByWindowBackground = false
     panel.delegate = self
-    panel.contentViewController = NSHostingController(
-      rootView: PickerView(session: session) { _ in })
     panel.eventHandler = { [weak self] event in self?.handle(event) ?? false }
-    replaceRootView()
+    panel.contentViewController = NSHostingController(
+      rootView: PickerView(session: session) { [weak self] index in self?.select(index: index) })
   }
 
   @available(*, unavailable)
@@ -61,7 +60,6 @@ final class PickerWindowController: NSWindowController, NSWindowDelegate {
       onCancel?()
       return
     }
-    replaceRootView()
     resizeAndPosition()
     presentPanel()
   }
