@@ -22,6 +22,34 @@ GNU General Public License, version 3 or (at your option) any later version
   bookmark for that folder.
 - Performs no network requests of its own.
 
+When handling a link, Browser Selector runs as an accessory app so its picker
+does not briefly add an icon to the Dock. Opening it directly still shows
+Settings as a regular app window.
+
+Opening Browser Selector directly shows Settings. Select **Set as Default
+Browser** and approve the macOS confirmation. You can also choose it under
+**System Settings → Desktop & Dock → Default web browser**.
+
+Settings has an optional **Keep Browser Selector running between links** switch.
+When enabled, closing Settings or finishing a picker leaves the same app idle,
+ready for the next link. A menu bar icon opens Settings or quits the app. It does
+not launch at login.
+
+## Install
+
+Download the DMG from [GitHub Releases](https://github.com/heyztb/browser-selector/releases),
+open it, and drag **Browser Selector** into **Applications**.
+
+Releases are **ad hoc signed and not notarized by Apple**. On first launch, macOS
+may block the app because it cannot verify the developer. Open **System Settings
+→ Privacy & Security**, select **Open Anyway** for Browser Selector, and confirm.
+This grants an exception for this app; disabling Gatekeeper is unnecessary.
+See [Apple's instructions](https://support.apple.com/102445).
+
+Once the app opens, select **Set as Default Browser** and approve the macOS
+confirmation. Updates are manual: quit the app, then replace it in Applications
+with the new version.
+
 ## Build
 
 Xcode 16 or newer is required. Build and test the Swift package:
@@ -39,18 +67,11 @@ testing, install it in `/Applications`:
 ./scripts/install-local.sh
 ```
 
-When handling a link, Browser Selector runs as an accessory app so its picker
-does not briefly add an icon to the Dock. Opening it directly still shows
-Settings as a regular app window.
+## Privacy and scope
 
-Opening Browser Selector directly shows Settings. Select **Set as Default
-Browser** and approve the macOS confirmation. You can also choose it under
-**System Settings → Desktop & Dock → Default web browser**.
-
-Settings has an optional **Keep Browser Selector running between links** switch.
-When enabled, closing Settings or finishing a picker leaves the same app idle,
-ready for the next link. A menu bar icon opens Settings or quits the app. It does
-not launch at login.
+Browser Selector knows what browsers you have installed and can detect Firefox
+profiles. It does not inspect pages, follow redirects, fetch favicons, retain
+opened URLs after a choice or cancellation, or send telemetry.
 
 ## Firefox profiles
 
@@ -82,40 +103,3 @@ Browser Selector never uses a shell to construct browser commands.
 | 1–9 | Open the numbered choice |
 | Escape | Cancel |
 
-## Install
-
-Download the DMG from [GitHub Releases](https://github.com/heyztb/browser-selector/releases),
-open it, and drag **Browser Selector** into **Applications**.
-
-Releases are **ad hoc signed and not notarized by Apple**. On first launch, macOS
-may block the app because it cannot verify the developer. Open **System Settings
-→ Privacy & Security**, select **Open Anyway** for Browser Selector, and confirm.
-This grants an exception for this app; disabling Gatekeeper is unnecessary.
-See [Apple's instructions](https://support.apple.com/102445).
-
-Once the app opens, select **Set as Default Browser** and approve the macOS
-confirmation. Updates are manual: quit the app, then replace it in Applications
-with the new version.
-
-## Releases
-
-To prepare a release from the reviewed commit, build a universal app and DMG:
-
-```sh
-swift test
-./scripts/release-dmg.sh 0.1.0 1
-```
-
-Replace the version and build number with those for the release. The script
-ad hoc signs the app, verifies the bundle and DMG, and writes the DMG and its
-SHA-256 checksum to `.build/releases/`. Check the app on a separate Mac before
-uploading the DMG and checksum to GitHub Releases manually. Tag the source
-commit with the matching `vVERSION` tag so recipients can find the source for
-the binary. Anyone who wants to inspect the behavior can read the source or
-build the app locally using the steps above.
-
-## Privacy and scope
-
-Browser Selector knows what browsers you have installed and can detect Firefox
-profiles. It does not inspect pages, follow redirects, fetch favicons, retain
-opened URLs after a choice or cancellation, or send telemetry.
