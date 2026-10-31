@@ -7,6 +7,7 @@ struct BrowserTarget: Identifiable, Equatable, Sendable {
   enum Kind: Equatable, Sendable {
     case application
     case firefoxProfile(path: URL)
+    case chromiumProfile(userDataDirectory: URL, directory: String)
   }
 
   let id: String
@@ -24,8 +25,14 @@ struct BrowserTarget: Identifiable, Equatable, Sendable {
   }
 
   var profilePath: URL? {
-    guard case .firefoxProfile(let path) = kind else { return nil }
-    return path
+    switch kind {
+    case .application:
+      nil
+    case .firefoxProfile(let path):
+      path
+    case .chromiumProfile(let userDataDirectory, let directory):
+      userDataDirectory.appendingPathComponent(directory, isDirectory: true).standardizedFileURL
+    }
   }
 
   static func applicationID(bundleIdentifier: String) -> String {
@@ -34,6 +41,10 @@ struct BrowserTarget: Identifiable, Equatable, Sendable {
 
   static func firefoxProfileID(bundleIdentifier: String, path: URL) -> String {
     "\(bundleIdentifier)|firefox|\(path.standardizedFileURL.path)"
+  }
+
+  static func chromiumProfileID(bundleIdentifier: String, directory: String) -> String {
+    "\(bundleIdentifier)|chromium|\(directory)"
   }
 }
 
@@ -46,7 +57,7 @@ struct TargetPreferences: Codable, Equatable, Sendable {
 struct DiscoveryResult: Equatable, Sendable {
   var targets: [BrowserTarget]
   var warnings: [String]
-  var needsFirefoxAccess = false
+  var foldersNeedingAccess: [ProfileFolder] = []
 }
 
 enum BrowserLaunchError: LocalizedError, Equatable, Sendable {
@@ -65,7 +76,7 @@ enum BrowserLaunchError: LocalizedError, Equatable, Sendable {
     case .executableMissing(let name):
       "The executable inside \(name) could not be found."
     case .profileMissing(let path):
-      "The Firefox profile no longer exists at \(path)."
+      "The browser profile no longer exists at \(path)."
     case .launchFailed(let message):
       "The browser could not be opened: \(message)"
     }

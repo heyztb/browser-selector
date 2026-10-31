@@ -1,7 +1,7 @@
 # Browser Selector
 
 Browser Selector is a small, native macOS utility that asks which browser or
-Firefox profile should open a link. It is deliberately limited to that job: no
+browser profile should open a link. It is deliberately limited to that job: no
 rules, history, analytics, page lookups, native-app routing, or update checks.
 
 It supports macOS 14 Sonoma and newer and is licensed under the
@@ -14,12 +14,14 @@ GNU General Public License, version 3 or (at your option) any later version
 - Finds installed browsers through macOS Launch Services.
 - Presents each Firefox profile as a separate choice, including valid profile
   directories missing from `profiles.ini`.
+- Presents each profile of Chrome, Chromium, Brave, Microsoft Edge, and Vivaldi
+  as a separate choice.
 - Opens a burst of pending links together in the selected target.
 - Supports the mouse, arrow keys, Tab and Shift-Tab, Return, number keys 1–9,
   Escape, and click-away dismissal.
 - Stores display names, visibility, ordering, and the optional background setting
-  in local preferences. If you grant Firefox folder access, it also stores a
-  bookmark for that folder.
+  in local preferences. If you grant access to a browser's profile folder, it
+  also stores a bookmark for that folder.
 - Performs no network requests of its own.
 
 When handling a link, Browser Selector runs as an accessory app so its picker
@@ -70,8 +72,9 @@ testing, install it in `/Applications`:
 ## Privacy and scope
 
 Browser Selector knows what browsers you have installed and can detect Firefox
-profiles. It does not inspect pages, follow redirects, fetch favicons, retain
-opened URLs after a choice or cancellation, or send telemetry.
+and Chromium-based browser profiles. It does not inspect pages, follow redirects,
+fetch favicons, retain opened URLs after a choice or cancellation, or send
+telemetry.
 
 ## Firefox profiles
 
@@ -92,6 +95,28 @@ visibility, and ordering are preserved when a Developer Edition profile is corre
 
 Firefox is invoked directly with `-profile` and the absolute profile path.
 Browser Selector never uses a shell to construct browser commands.
+
+## Chromium profiles
+
+Browser Selector reads the `Local State` file in each supported browser's data
+folder and lists every profile in its `profile.info_cache`, using the name shown
+in the browser. Profiles whose directory no longer exists are skipped with a
+notice in Settings. A browser with no readable profiles appears as a single
+generic entry.
+
+| Browser | Data folder in `~/Library/Application Support` |
+| --- | --- |
+| Google Chrome (Beta, Dev, Canary) | `Google/Chrome` (`Google/Chrome Beta`, …) |
+| Chromium | `Chromium` |
+| Brave (Beta, Nightly) | `BraveSoftware/Brave-Browser` (`-Beta`, `-Nightly`) |
+| Microsoft Edge (Beta, Dev, Canary) | `Microsoft Edge` (`Microsoft Edge Beta`, …) |
+| Vivaldi | `Vivaldi` |
+
+The browser executable is invoked directly with `--profile-directory=<name>`
+followed by the links. If the browser is already running, it hands the links to
+the running instance, which opens them in a window for that profile. All profiles
+share the browser's single Dock icon. If macOS denies access to a data folder,
+Settings offers a button to approve it in a folder chooser.
 
 ## Keyboard controls
 

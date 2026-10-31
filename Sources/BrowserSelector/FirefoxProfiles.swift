@@ -3,37 +3,6 @@
 
 import Foundation
 
-enum FirefoxFolderAuthorization {
-  static let bookmarkKey = "firefoxFolderBookmark.v1"
-
-  static func save(_ url: URL) throws {
-    let data: Data
-    do {
-      data = try url.bookmarkData(
-        options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil)
-    } catch {
-      // An unsandboxed build may not support security-scoped bookmarks. The
-      // Open panel still grants access; retain a regular bookmark for the path.
-      data = try url.bookmarkData(
-        options: [], includingResourceValuesForKeys: nil, relativeTo: nil)
-    }
-    UserDefaults.standard.set(data, forKey: bookmarkKey)
-  }
-
-  static func startAccessing(_ expected: URL) -> URL? {
-    guard let data = UserDefaults.standard.data(forKey: bookmarkKey) else { return nil }
-    var stale = false
-    let scopedURL = try? URL(
-      resolvingBookmarkData: data, options: [.withSecurityScope], relativeTo: nil,
-      bookmarkDataIsStale: &stale)
-    let url = scopedURL ?? (try? URL(
-      resolvingBookmarkData: data, options: [], relativeTo: nil,
-      bookmarkDataIsStale: &stale))
-    guard let url, url.standardizedFileURL == expected.standardizedFileURL else { return nil }
-    return url.startAccessingSecurityScopedResource() ? url : nil
-  }
-}
-
 struct FirefoxProfile: Equatable, Sendable {
   let name: String
   let path: URL
@@ -143,8 +112,12 @@ struct FirefoxProfileDiscovery {
       .appendingPathComponent("Library/Application Support/Firefox", isDirectory: true)
   }
 
+  var folder: ProfileFolder {
+    ProfileFolder(browserName: "Firefox", url: firefoxRoot, bookmarkKey: "firefoxFolderBookmark.v1")
+  }
+
   func discover() -> (profiles: [FirefoxProfile], warnings: [String], needsAccess: Bool) {
-    let scopedURL = FirefoxFolderAuthorization.startAccessing(firefoxRoot)
+    let scopedURL = FolderAuthorization.startAccessing(folder)
     defer { scopedURL?.stopAccessingSecurityScopedResource() }
     var warnings: [String] = []
     var needsAccess = false
@@ -162,7 +135,7 @@ struct FirefoxProfileDiscovery {
           byPath[profile.path.standardizedFileURL.path] = profile
         }
       } catch {
-        needsAccess = isPermissionError(error)
+        needsAccess = FolderAuthorization.isPermissionError(error)
         warnings.append("Could not read Firefox profiles.ini: \(error.localizedDescription)")
       }
     }
@@ -185,7 +158,7 @@ struct FirefoxProfileDiscovery {
         }
       }
     } catch {
-      needsAccess = needsAccess || isPermissionError(error)
+      needsAccess = needsAccess || FolderAuthorization.isPermissionError(error)
       if (error as NSError).code != NSFileReadNoSuchFileError {
         warnings.append("Could not scan Firefox profiles: \(error.localizedDescription)")
       }
@@ -205,12 +178,6 @@ struct FirefoxProfileDiscovery {
         ? $0.path.path < $1.path.path : comparison == .orderedAscending
     }
     return (profiles, warnings, needsAccess)
-  }
-
-  private func isPermissionError(_ error: Error) -> Bool {
-    let error = error as NSError
-    return (error.domain == NSCocoaErrorDomain && error.code == NSFileReadNoPermissionError)
-      || (error.domain == NSPOSIXErrorDomain && (error.code == EACCES || error.code == EPERM))
   }
 
   private func isProfileDirectory(_ url: URL) -> Bool {

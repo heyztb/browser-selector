@@ -99,33 +99,51 @@ final class BrowserLauncher: BrowserLaunching {
       }
 
     case .firefoxProfile(let profilePath):
-      guard fileManager.fileExists(atPath: profilePath.path) else {
-        completion(.failure(.profileMissing(profilePath.path)))
-        return
-      }
-      guard let bundle = Bundle(url: target.appURL),
-        let executableName = bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
-      else {
-        completion(.failure(.executableMissing(target.displayName)))
-        return
-      }
-      let executableURL = target.appURL
-        .appendingPathComponent("Contents/MacOS", isDirectory: true)
-        .appendingPathComponent(executableName)
-      guard fileManager.isExecutableFile(atPath: executableURL.path) else {
-        completion(.failure(.executableMissing(target.displayName)))
-        return
-      }
+      run(
+        target, profilePath: profilePath,
+        arguments: ["-profile", profilePath.standardizedFileURL.path] + urls.map(\.absoluteString),
+        completion: completion)
 
-      do {
-        try processRunner.run(
-          executableURL: executableURL,
-          arguments: ["-profile", profilePath.standardizedFileURL.path] + urls.map(\.absoluteString)
-        )
-        completion(.success(()))
-      } catch {
-        completion(.failure(.launchFailed(error.localizedDescription)))
-      }
+    case .chromiumProfile(let userDataDirectory, let directory):
+      // A running browser receives this command line through its process
+      // singleton and opens the URLs in the named profile.
+      run(
+        target,
+        profilePath: userDataDirectory.appendingPathComponent(directory, isDirectory: true),
+        arguments: ["--profile-directory=\(directory)"] + urls.map(\.absoluteString),
+        completion: completion)
+    }
+  }
+
+  private func run(
+    _ target: BrowserTarget,
+    profilePath: URL,
+    arguments: [String],
+    completion: @escaping @MainActor @Sendable (Result<Void, BrowserLaunchError>) -> Void
+  ) {
+    guard fileManager.fileExists(atPath: profilePath.path) else {
+      completion(.failure(.profileMissing(profilePath.path)))
+      return
+    }
+    guard let bundle = Bundle(url: target.appURL),
+      let executableName = bundle.object(forInfoDictionaryKey: "CFBundleExecutable") as? String
+    else {
+      completion(.failure(.executableMissing(target.displayName)))
+      return
+    }
+    let executableURL = target.appURL
+      .appendingPathComponent("Contents/MacOS", isDirectory: true)
+      .appendingPathComponent(executableName)
+    guard fileManager.isExecutableFile(atPath: executableURL.path) else {
+      completion(.failure(.executableMissing(target.displayName)))
+      return
+    }
+
+    do {
+      try processRunner.run(executableURL: executableURL, arguments: arguments)
+      completion(.success(()))
+    } catch {
+      completion(.failure(.launchFailed(error.localizedDescription)))
     }
   }
 }

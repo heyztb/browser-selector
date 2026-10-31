@@ -48,21 +48,23 @@ struct SettingsView: View {
 
       Divider()
 
-      if store.needsFirefoxAccess {
+      ForEach(store.foldersNeedingAccess) { folder in
         HStack(alignment: .center, spacing: 12) {
           VStack(alignment: .leading, spacing: 2) {
-            Text("Firefox profiles need access")
+            Text("\(folder.browserName) profiles need access")
               .font(.headline)
-            Text("macOS denied access. Approve the Firefox folder in the chooser to show individual profiles.")
+            Text(
+              "macOS denied access. Approve the \(folder.browserName) folder in the chooser to show individual profiles."
+            )
               .font(.caption)
               .foregroundStyle(.secondary)
           }
           Spacer()
-          Button("Grant Firefox Access") { store.chooseFirefoxFolder() }
-            .accessibilityIdentifier("choose-firefox-folder")
+          Button("Grant \(folder.browserName) Access") { store.chooseFolder(folder) }
+            .accessibilityIdentifier("choose-profile-folder")
         }
       }
-      if let error = store.firefoxAccessError {
+      if let error = store.folderAccessError {
         Label(error, systemImage: "exclamationmark.triangle.fill")
           .font(.caption)
           .foregroundStyle(.red)
@@ -217,9 +219,13 @@ private struct TargetSettingsRow: View {
   }
 
   private var detail: String {
-    if let path = target.profilePath {
-      return "Firefox profile · \(path.path)"
+    switch target.kind {
+    case .application:
+      target.appURL.path
+    case .firefoxProfile(let path):
+      "Firefox profile · \(path.path)"
+    case .chromiumProfile(let userDataDirectory, let directory):
+      "Chromium profile · \(userDataDirectory.appendingPathComponent(directory).path)"
     }
-    return target.appURL.path
   }
 }

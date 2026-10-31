@@ -18,7 +18,8 @@ enum BrowserTargetBuilder {
   static func build(
     applications: [BrowserApplicationRecord],
     currentBundleIdentifier: String,
-    firefoxProfiles: [FirefoxProfile]
+    firefoxProfiles: [FirefoxProfile],
+    chromiumProfiles: [String: [ChromiumProfile]] = [:]
   ) -> DiscoveryResult {
     var seen: Set<String> = []
     var targets: [BrowserTarget] = []
@@ -62,6 +63,22 @@ enum BrowserTargetBuilder {
               order: targets.count
             ))
         }
+      } else if let profiles = chromiumProfiles[bundleIdentifier], !profiles.isEmpty {
+        for profile in profiles {
+          targets.append(
+            BrowserTarget(
+              id: BrowserTarget.chromiumProfileID(
+                bundleIdentifier: bundleIdentifier, directory: profile.directory),
+              bundleIdentifier: bundleIdentifier,
+              appURL: application.appURL.standardizedFileURL,
+              discoveredName: profile.name,
+              kind: .chromiumProfile(
+                userDataDirectory: profile.userDataDirectory, directory: profile.directory),
+              customName: nil,
+              isVisible: true,
+              order: targets.count
+            ))
+        }
       } else {
         targets.append(
           BrowserTarget(
@@ -90,16 +107,19 @@ final class BrowserDiscovery: BrowserDiscovering {
   private let workspace: NSWorkspace
   private let currentBundleIdentifier: String
   private let firefoxProfiles: FirefoxProfileDiscovery
+  private let chromiumProfiles: ChromiumProfileDiscovery
 
   init(
     workspace: NSWorkspace = .shared,
     currentBundleIdentifier: String = Bundle.main.bundleIdentifier
       ?? "io.github.heyztb.BrowserSelector",
-    firefoxProfiles: FirefoxProfileDiscovery = FirefoxProfileDiscovery()
+    firefoxProfiles: FirefoxProfileDiscovery = FirefoxProfileDiscovery(),
+    chromiumProfiles: ChromiumProfileDiscovery = ChromiumProfileDiscovery()
   ) {
     self.workspace = workspace
     self.currentBundleIdentifier = currentBundleIdentifier
     self.firefoxProfiles = firefoxProfiles
+    self.chromiumProfiles = chromiumProfiles
   }
 
   func discover() -> DiscoveryResult {
@@ -129,16 +149,29 @@ final class BrowserDiscovery: BrowserDiscovering {
         ))
     }
 
-    let profileResult =
+    var foldersNeedingAccess: [ProfileFolder] = []
+    let firefoxResult =
       applications.contains {
         BrowserTargetBuilder.firefoxBundleIdentifiers.contains($0.bundleIdentifier)
       }
       ? firefoxProfiles.discover() : (profiles: [], warnings: [], needsAccess: false)
-    warnings.append(contentsOf: profileResult.warnings)
+    warnings.append(contentsOf: firefoxResult.warnings)
+    if firefoxResult.needsAccess { foldersNeedingAccess.append(firefoxProfiles.folder) }
+
+    var chromiumResults: [String: [ChromiumProfile]] = [:]
+    for browser in ChromiumBrowser.known
+    where applications.contains(where: { $0.bundleIdentifier == browser.bundleIdentifier }) {
+      let result = chromiumProfiles.discover(browser)
+      chromiumResults[browser.bundleIdentifier] = result.profiles
+      warnings.append(contentsOf: result.warnings)
+      if result.needsAccess { foldersNeedingAccess.append(chromiumProfiles.folder(for: browser)) }
+    }
+
     let result = BrowserTargetBuilder.build(
       applications: applications,
       currentBundleIdentifier: currentBundleIdentifier,
-      firefoxProfiles: profileResult.profiles
+      firefoxProfiles: firefoxResult.profiles,
+      chromiumProfiles: chromiumResults
     )
 
     warnings.append(contentsOf: result.warnings)
@@ -146,8 +179,7 @@ final class BrowserDiscovery: BrowserDiscovering {
       warnings.append("No installed web browsers were found.")
     }
     return DiscoveryResult(
-      targets: result.targets, warnings: warnings,
-      needsFirefoxAccess: profileResult.needsAccess)
+      targets: result.targets, warnings: warnings, foldersNeedingAccess: foldersNeedingAccess)
   }
 }
 

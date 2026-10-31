@@ -93,6 +93,48 @@ final class BrowserLauncherTests: XCTestCase {
     XCTAssertNil(runner.arguments)
   }
 
+  func testChromiumProfileUsesProfileDirectoryArgumentWithAllURLs() throws {
+    let appURL = try makeFakeApplication(executableName: "Google Chrome")
+    defer { try? FileManager.default.removeItem(at: appURL.deletingLastPathComponent()) }
+    let userData = appURL.deletingLastPathComponent().appendingPathComponent("User Data")
+    try FileManager.default.createDirectory(
+      at: userData.appendingPathComponent("Profile 1"), withIntermediateDirectories: true)
+    let runner = RecordingProcessRunner()
+    let urls = [URL(string: "https://example.com/a?b=c")!, URL(string: "https://example.org")!]
+    let target = makeTarget(
+      appURL: appURL, kind: .chromiumProfile(userDataDirectory: userData, directory: "Profile 1"))
+    let recorder = LaunchResultRecorder()
+
+    BrowserLauncher(processRunner: runner).open(urls: urls, with: target) { recorder.result = $0 }
+
+    XCTAssertNotNil(try recorder.result?.get())
+    XCTAssertEqual(
+      runner.executableURL, appURL.appendingPathComponent("Contents/MacOS/Google Chrome"))
+    XCTAssertEqual(
+      runner.arguments,
+      ["--profile-directory=Profile 1", "https://example.com/a?b=c", "https://example.org"])
+  }
+
+  func testMissingChromiumProfileFailsWithoutRunning() throws {
+    let appURL = try makeFakeApplication(executableName: "Brave Browser")
+    defer { try? FileManager.default.removeItem(at: appURL.deletingLastPathComponent()) }
+    let userData = appURL.deletingLastPathComponent().appendingPathComponent("User Data")
+    let runner = RecordingProcessRunner()
+    let target = makeTarget(
+      appURL: appURL, kind: .chromiumProfile(userDataDirectory: userData, directory: "Profile 9"))
+    let recorder = LaunchResultRecorder()
+
+    BrowserLauncher(processRunner: runner).open(
+      urls: [URL(string: "https://example.com")!], with: target
+    ) { recorder.result = $0 }
+
+    guard case .failure(let error) = recorder.result else {
+      return XCTFail("Expected a missing-profile failure")
+    }
+    XCTAssertEqual(error, .profileMissing(userData.appendingPathComponent("Profile 9").path))
+    XCTAssertNil(runner.arguments)
+  }
+
   private func makeTarget(appURL: URL, kind: BrowserTarget.Kind) -> BrowserTarget {
     BrowserTarget(
       id: "test",
