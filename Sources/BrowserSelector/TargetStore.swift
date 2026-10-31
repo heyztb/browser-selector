@@ -98,8 +98,14 @@ final class TargetStore: ObservableObject {
     save()
   }
 
-  func move(fromOffsets offsets: IndexSet, toOffset destination: Int) {
-    targets.move(fromOffsets: offsets, toOffset: destination)
+  /// Moves `id` into `destinationID`'s position, shifting the rows in between.
+  func moveTarget(id: String, to destinationID: String) {
+    guard
+      let source = targets.firstIndex(where: { $0.id == id }),
+      let destination = targets.firstIndex(where: { $0.id == destinationID }),
+      source != destination
+    else { return }
+    targets.insert(targets.remove(at: source), at: destination)
     normalizeOrderAndSave()
   }
 

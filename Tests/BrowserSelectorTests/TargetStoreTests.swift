@@ -37,6 +37,24 @@ final class TargetStoreTests: XCTestCase {
     XCTAssertEqual(try XCTUnwrap(restored.targets.first { $0.id == "two" }).displayName, "Personal")
   }
 
+  func testDragMoveTakesDestinationSlotInEitherDirectionAndPersists() throws {
+    let suiteName = "BrowserSelectorTests.\(UUID().uuidString)"
+    let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    let discovery = StubDiscovery(targets: ["a", "b", "c", "d"].map(target))
+    let store = TargetStore(discovery: discovery, defaults: defaults)
+
+    store.moveTarget(id: "a", to: "c")
+    XCTAssertEqual(store.targets.map(\.id), ["b", "c", "a", "d"])
+    store.moveTarget(id: "d", to: "b")
+    XCTAssertEqual(store.targets.map(\.id), ["d", "b", "c", "a"])
+    store.moveTarget(id: "c", to: "c")
+    XCTAssertEqual(store.targets.map(\.id), ["d", "b", "c", "a"])
+
+    let restored = TargetStore(discovery: discovery, defaults: defaults)
+    XCTAssertEqual(restored.targets.map(\.id), ["d", "b", "c", "a"])
+  }
+
   func testStoreRefusesToDisableFinalVisibleTarget() {
     let suiteName = "BrowserSelectorTests.\(UUID().uuidString)"
     let defaults = UserDefaults(suiteName: suiteName)!

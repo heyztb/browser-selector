@@ -19,6 +19,8 @@ GNU General Public License, version 3 or (at your option) any later version
 - Opens a burst of pending links together in the selected target.
 - Supports the mouse, arrow keys, Tab and Shift-Tab, Return, number keys 1–9,
   Escape, and click-away dismissal.
+- Lets you rename, hide, and reorder choices in Settings. Drag a row by its
+  handle or use its up/down arrows.
 - Stores display names, visibility, ordering, and the optional background setting
   in local preferences. If you grant access to a browser's profile folder, it
   also stores a bookmark for that folder.
